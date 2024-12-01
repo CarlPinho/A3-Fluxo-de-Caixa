@@ -3,6 +3,12 @@
 #### NOME: Carlos Emanuel Da Sulva Pinho
 #### RA: 1252228970
 
+#### NOME: Tiago Gonçalves de Almeida
+#### RA: 12523117709
+
+#### NOME: João gabriel de Araújo Diniz
+#### RA: 12522198775
+
 ## Desenvolvimento de um Banco de Dados Relacional para Gestão do Fluxo de Caixa
 
 # Introdução:
