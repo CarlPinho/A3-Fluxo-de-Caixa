@@ -290,6 +290,39 @@ END;
 * Lógica: Verifica se o tipo de movimentação é válido, se o valor é maior que zero e se a data não é futura.
 * Resultado: Exibe mensagens de erro ou sucesso.
 
+```
+--Validação de dados de entrada
+
+
+CREATE PROCEDURE ValidarInsercaoMovimentacao
+    @tipo VARCHAR(10),
+    @valor DECIMAL(18, 2),
+    @data_movimentacao DATETIME
+AS
+BEGIN
+    IF @tipo NOT IN ('entrada', 'saída')
+    BEGIN
+        PRINT 'Erro: Tipo de movimentação inválido.';
+        RETURN;
+    END
+
+    IF @valor <= 0
+    BEGIN
+        PRINT 'Erro: O valor deve ser maior que zero.';
+        RETURN;
+    END
+
+    IF @data_movimentacao > GETDATE()
+    BEGIN
+        PRINT 'Erro: A data da movimentação não pode ser no futuro.';
+        RETURN;
+    END
+
+    PRINT 'Dados validados com sucesso.';
+END;
+
+```
+
 # Funções:
 
 ### CalcularJurosCompostos:
