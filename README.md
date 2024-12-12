@@ -342,58 +342,134 @@ END;
 ```
 
 ###  CalcularVPL:
-* Objetivo: Calcula o valor presente líquido (VPL) de um conjunto de fluxos de caixa.
-* Lógica: Desconta os fluxos de caixa usando uma taxa de desconto e calcula o somatório do VPL.
+
 
 
 ```
+--Cálculo do valor presente líquido (VPL).
+
+-- Passo 1: Criar a tabela de fluxos de caixa e inserir dados
+CREATE TABLE FluxosCaixa
+(
+    periodo INT,
+    valor DECIMAL(18, 2)
+);
+
+INSERT INTO FluxosCaixa (periodo, valor)
+VALUES 
+    (1, 1000),
+    (2, 2000),
+    (3, 3000);
+
+-- Passo 2: Criar a função CalcularVPL
 CREATE FUNCTION CalcularVPL
-    (@taxa DECIMAL(10, 4), @fluxos TipoFluxos READONLY)  
+(
+    @taxa DECIMAL(10, 4)
+)
 RETURNS DECIMAL(18, 2)
 AS
 BEGIN
     DECLARE @vpl DECIMAL(18, 2) = 0;
+    DECLARE @periodo INT;
+    DECLARE @valor DECIMAL(18, 2);
 
-    SELECT @vpl = @vpl + valor / POWER(1 + @taxa, periodo)
-    FROM @fluxos;
+    -- Cursor para iterar pelos fluxos de caixa
+    DECLARE fluxo_cursor CURSOR FOR
+    SELECT periodo, valor
+    FROM FluxosCaixa;
+
+    OPEN fluxo_cursor;
+
+    FETCH NEXT FROM fluxo_cursor INTO @periodo, @valor;
+
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        SET @vpl = @vpl + @valor / POWER(1 + @taxa, @periodo);
+        FETCH NEXT FROM fluxo_cursor INTO @periodo, @valor;
+    END;
+
     
+    CLOSE fluxo_cursor;
+    DEALLOCATE fluxo_cursor;
+
     RETURN @vpl;
 END;
+
+-- Passo 3: Executar a função para verificar o resultado
+SELECT dbo.CalcularVPL(0.05) AS VPL;
 
 ```
 
 ### CalcularTIR:
-*  Objetivo: Calcula a taxa interna de retorno (TIR) de um conjunto de fluxos de caixa.
-*  Lógica: A função utiliza um método iterativo para encontrar a TIR, ajustando a taxa até que o VPL se aproxime de zero.
+
 
 
 ```
 CREATE FUNCTION CalcularTIR
-    (@fluxos TipoFluxos READONLY, @iteracoes INT, @precisao DECIMAL(10, 6))
+(
+    @iteracoes INT,
+    @precisao DECIMAL(10, 6)
+)
 RETURNS DECIMAL(10, 6)
 AS
 BEGIN
     DECLARE @tir DECIMAL(10, 6) = 0.1; -- Valor inicial da TIR
     DECLARE @vpl DECIMAL(18, 2);
     DECLARE @ajuste DECIMAL(10, 6);
+    DECLARE @periodo INT;
+    DECLARE @valor DECIMAL(18, 2);
+    
+    -- Cursor para iterar pelos fluxos de caixa
+    DECLARE fluxo_cursor CURSOR FOR
+    SELECT periodo, valor
+    FROM FluxosCaixa;
 
+    -- Loop para encontrar a TIR
     WHILE @iteracoes > 0
     BEGIN
-        SELECT @vpl = SUM(valor / POWER(1 + @tir, periodo))
-        FROM @fluxos;
+        SET @vpl = 0;
 
+        -- Abrir o cursor
+        OPEN fluxo_cursor;
+
+        -- Obter a primeira linha
+        FETCH NEXT FROM fluxo_cursor INTO @periodo, @valor;
+
+        -- Iterar pelas linhas do cursor
+        WHILE @@FETCH_STATUS = 0
+        BEGIN
+            SET @vpl = @vpl + @valor / POWER(1 + @tir, @periodo);
+            FETCH NEXT FROM fluxo_cursor INTO @periodo, @valor;
+        END;
+
+        -- Fechar o cursor
+        CLOSE fluxo_cursor;
+
+        -- Se o VPL for suficientemente próximo de 0, retorne a TIR
         IF ABS(@vpl) <= @precisao
             RETURN @tir;
 
-        SELECT @ajuste = -(@vpl / SUM(-periodo * valor / POWER(1 + @tir, periodo + 1)))
-        FROM @fluxos;
+        -- Calcular o ajuste para a TIR
+        SET @ajuste = -(@vpl / (
+            SELECT SUM(-periodo * valor / POWER(1 + @tir, periodo + 1))
+            FROM FluxosCaixa
+        ));
 
+        -- Atualizar a TIR
         SET @tir = @tir + @ajuste;
         SET @iteracoes = @iteracoes - 1;
-    END
+    END;
 
-    RETURN NULL;
+    -- Desalocar o cursor
+    DEALLOCATE fluxo_cursor;
+
+    RETURN NULL; 
 END;
+
+
+-- Chamar a função CalcularTIR 
+SELECT dbo.CalcularTIR(100, 500.2) AS TIR;
 
 ```
 
